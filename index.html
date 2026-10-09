@@ -160,6 +160,14 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
           timestamp:now.toISOString()
         }]
       };
+      const screenshot = window.NarasiScreenshot?.getFile(form) || null;
+      let screenshotName = '';
+      if (screenshot) {
+        const extension = screenshot.type === 'image/jpeg' ? 'jpg' : screenshot.type.split('/')[1];
+        screenshotName = 'narasi-' + action + '-' + id + '.' + extension;
+        payload.embeds[0].image = {url: 'attachment://' + screenshotName};
+        payload.attachments = [{id: 0, filename: screenshotName}];
+      }
       const submit = form.querySelector('button[type=submit]');
       submit.disabled = true;
       feedback.className = 'feedback wait';
@@ -167,6 +175,7 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
       try {
         const data = new FormData();
         data.append('payload_json', JSON.stringify(payload));
+        if (screenshot) data.append('files[0]', screenshot, screenshotName);
         // Discord accepts multipart payload_json. no-cors responses are opaque.
         await fetch(DISCORD_WEBHOOK, {method:'POST',mode:'no-cors',body:data});
         history.unshift({action,staff,item,note,quantity,id,timestamp:wib + ' WIB'});
@@ -174,6 +183,7 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
         localStorage.setItem(STORAGE, JSON.stringify(history));
         drawHistory();
         form.reset();
+        window.NarasiScreenshot?.clear(form);
         feedback.className = 'feedback wait';
         feedback.textContent = 'Request submitted. Check your Discord channel to confirm delivery.';
       } catch (error) {
@@ -187,5 +197,6 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
   drawHistory();
 })();
 </script>
+<script src="./screenshot-upload.js"></script>
 </body>
 </html>
