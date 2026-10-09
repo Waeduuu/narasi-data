@@ -23,7 +23,7 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
 .dialog{position:fixed;z-index:10;inset:0;background:#050a0ee0;display:none;align-items:center;justify-content:center;padding:20px}.dialog.open{display:flex}.dialog-content{width:min(500px,100%);background:#15232c;border:1px solid #267b89;box-shadow:0 25px 90px #0009;padding:24px;border-radius:18px}.dialog-content h3{font-size:22px;margin:0 0 5px}.dialog-content p{font-size:12px;color:#a4c6cf;line-height:1.6}.dialog-actions{display:flex;gap:10px;margin-top:18px}.dialog-actions button{flex:1}.small-note{font-size:10px;color:#a1bac3;line-height:1.6;margin-top:10px}
 @media(max-width:760px){.wrap{width:min(100% - 20px,600px);margin:12px auto}.hero{padding:23px}.brand{gap:8px;align-items:center;flex-direction:column;text-align:center}.logo-holder{width:190px;height:150px}.logo-fallback{width:75px;height:75px;font-size:31px}.kicker{font-size:9px;letter-spacing:2px}.title{font-size:27px}.desc{font-size:11px}.grid{grid-template-columns:1fr;gap:13px}.card{padding:20px}.history{padding:18px}.head-actions{margin:14px 0}.history-top{align-items:flex-start}.log{flex-direction:column}.two{grid-template-columns:1fr 115px}}
 @media(max-width:380px){.two{grid-template-columns:1fr}.logo-holder{width:150px;height:125px}.title{font-size:23px}.hero{padding:17px}}
-.turnstile-check{margin:0 0 12px;min-height:0}.turnstile-check iframe{max-width:100%}\n</style>
+\n</style>
 </head>
 <body>
 <main class="wrap">
@@ -33,14 +33,13 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
       <div><div class="kicker">NARASI GARAGE • MANAGEMENT SYSTEM</div><h1 class="title">WITHDRAW <span>&</span> DEPOSIT</h1><p class="desc">Record items entering and leaving the garage. No prices, cash, or fixed item list.</p></div>
     </div>
   </header>
-  <p class="info">Enter the item details, then submit. Discord logs are delivered automatically once the secure service is activated.</p>
+  <p class="info">Type any item details and submit a Discord log. Direct webhook mode: verify the message in Discord after submitting.</p>
   <section class="grid" aria-label="Deposit and Withdraw forms">
     <form class="card" data-action="deposit">
       <h2>📥 Deposit</h2><p class="sub">Record items added to the garage.</p><div class="bar deposit"></div>
       <div class="field"><label for="deposit-staff">Staff / IC Name *</label><input class="input" id="deposit-staff" name="staff" autocomplete="name" maxlength="80" placeholder="Enter staff name" required /></div>
       <div class="two"><div class="field"><label for="deposit-item">Item / Description *</label><input class="input" id="deposit-item" name="item" maxlength="140" placeholder="Type any item" required /></div><div class="field"><label for="deposit-qty">Quantity</label><input class="input" id="deposit-qty" name="quantity" type="number" min="1" max="999999" step="1" placeholder="Optional" /></div></div>
       <div class="field"><label for="deposit-note">Notes / Details</label><textarea class="input" id="deposit-note" name="note" maxlength="750" placeholder="Additional details or reason (optional)"></textarea></div>
-      <div class="turnstile-check" aria-label="Secure form verification"></div>
       <button class="btn deposit-btn" type="submit">＋ Send Deposit to Discord</button><div class="feedback" role="status" aria-live="polite"></div>
     </form>
     <form class="card" data-action="withdraw">
@@ -48,144 +47,144 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
       <div class="field"><label for="withdraw-staff">Staff / IC Name *</label><input class="input" id="withdraw-staff" name="staff" autocomplete="name" maxlength="80" placeholder="Enter staff name" required /></div>
       <div class="two"><div class="field"><label for="withdraw-item">Item / Description *</label><input class="input" id="withdraw-item" name="item" maxlength="140" placeholder="Type any item" required /></div><div class="field"><label for="withdraw-qty">Quantity</label><input class="input" id="withdraw-qty" name="quantity" type="number" min="1" max="999999" step="1" placeholder="Optional" /></div></div>
       <div class="field"><label for="withdraw-note">Notes / Details</label><textarea class="input" id="withdraw-note" name="note" maxlength="750" placeholder="Additional details or reason (optional)"></textarea></div>
-      <div class="turnstile-check" aria-label="Secure form verification"></div>
       <button class="btn withdraw-btn" type="submit">－ Send Withdraw to Discord</button><div class="feedback" role="status" aria-live="polite"></div>
     </form>
   </section>
   <section class="history" aria-labelledby="historyTitle">
-    <div class="history-top"><div><h3 id="historyTitle">📋 Recent Submissions</h3><span class="muted">Successfully sent from this browser only</span></div><button class="settings-btn" id="clearHistory" type="button">Clear Local History</button></div>
+    <div class="history-top"><div><h3 id="historyTitle">📋 Recent Submissions</h3><span class="muted">Submission attempts on this browser (not delivery confirmation)</span></div><button class="settings-btn" id="clearHistory" type="button">Clear Local History</button></div>
     <div id="logList" class="log-list"></div>
   </section>
   <footer>NARASI GARAGE • WITHDRAW & DEPOSIT • Powered by GitHub Pages</footer>
 </main>
 <script>
-(()=>{'use strict';
-const $ = selector => document.querySelector(selector);
-const STORAGE = 'narasi-withdraw-deposit-history-v1';
-// Public endpoints/keys only. Put the Discord webhook and Turnstile secret in Cloudflare Worker secrets.
-// Admin: replace these two values AFTER deploying the Worker and creating a Turnstile widget.
-const CONFIG = Object.freeze({
-  workerUrl: '',
-  turnstileSiteKey: ''
-});
-let history = [];
-const widgetIds = new Map();
-try {
-  const saved = JSON.parse(localStorage.getItem(STORAGE) || '[]');
-  if (Array.isArray(saved)) history = saved.slice(0, 30);
-} catch {}
-const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({
-  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-}[char]));
-function drawHistory() {
-  const out = $('#logList');
-  out.innerHTML = history.length
-    ? history.map(record => {
-        const qty = record.quantity ? ' × ' + escapeHTML(record.quantity) : '';
-        const note = record.note ? '\\nNotes: ' + escapeHTML(record.note) : '';
-        return `<div class="log"><div><div class="log-title">${escapeHTML(record.item)}${qty}</div><div class="log-detail">Staff: ${escapeHTML(record.staff)}${note}\\n${escapeHTML(record.timestamp)} · ${escapeHTML(record.id)}</div></div><span class="log-type ${escapeHTML(record.action)}">${record.action === 'deposit' ? 'DEPOSIT' : 'WITHDRAW'}</span></div>`;
-      }).join('')
-    : '<div class="empty">No successful submissions yet.</div>';
-}
-$('#clearHistory').addEventListener('click', () => {
-  if (history.length && confirm('Clear history saved in this browser? Discord messages will not be deleted.')) {
-    history = [];
-    localStorage.removeItem(STORAGE);
-    drawHistory();
-  }
-});
-function initTurnstile() {
-  for (const form of document.querySelectorAll('form[data-action]')) {
+(() => {
+  'use strict';
+  // WARNING: This URL becomes PUBLIC in GitHub Pages source code.
+  // Replace ID/TOKEN in GitHub with your webhook URL only if you accept that risk.
+  const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/ID/TOKEN";
+  const STORAGE = 'narasi-withdraw-deposit-history-v1';
+  const history = (() => {
     try {
-      const id = window.turnstile.render(form.querySelector('.turnstile-check'), {
-        sitekey: CONFIG.turnstileSiteKey,
-        action: form.dataset.action === 'deposit' ? 'garage_deposit' : 'garage_withdraw',
-        theme: 'dark',
-        appearance: 'interaction-only'
-      });
-      widgetIds.set(form, id);
-    } catch (error) {
-      console.warn('Turnstile initialization failed.', error);
+      const list = JSON.parse(localStorage.getItem(STORAGE) || '[]');
+      return Array.isArray(list) ? list.slice(0, 30) : [];
+    } catch { return []; }
+  })();
+  function drawHistory() {
+    const list = document.getElementById('logList');
+    list.replaceChildren();
+    if (!history.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'No submission attempts yet.';
+      list.append(empty);
+      return;
+    }
+    for (const record of history) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'log';
+      const left = document.createElement('div');
+      const name = document.createElement('div');
+      name.className = 'log-title';
+      name.textContent = record.item + (record.quantity ? ' × ' + record.quantity : '');
+      const detail = document.createElement('div');
+      detail.className = 'log-detail';
+      detail.textContent = 'Staff: ' + record.staff +
+        (record.note ? '\nNotes: ' + record.note : '') +
+        '\n' + record.timestamp + ' · ' + record.id + '\nDelivery: Unverified';
+      left.append(name, detail);
+      const type = document.createElement('span');
+      type.className = 'log-type ' + (record.action === 'deposit' ? 'deposit' : 'withdraw');
+      type.textContent = record.action === 'deposit' ? 'DEPOSIT' : 'WITHDRAW';
+      wrapper.append(left, type);
+      list.append(wrapper);
     }
   }
-}
-if (CONFIG.workerUrl && CONFIG.turnstileSiteKey) {
-  const script = document.createElement('script');
-  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-  script.async = true;
-  script.onload = initTurnstile;
-  document.head.appendChild(script);
-}
-for (const form of document.querySelectorAll('form[data-action]')) {
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    const feedback = form.querySelector('.feedback');
-    feedback.className = 'feedback';
-    feedback.textContent = '';
-    const data = Object.fromEntries(new FormData(form));
-    const staff = (data.staff || '').trim();
-    const item = (data.item || '').trim();
-    const note = (data.note || '').trim();
-    const qty = data.quantity ? Number(data.quantity) : null;
-    if (!staff || !item) {
-      feedback.className = 'feedback error';
-      feedback.textContent = 'Staff name and item details are required.';
-      return;
-    }
-    if (qty !== null && (!Number.isSafeInteger(qty) || qty < 1 || qty > 999999)) {
-      feedback.className = 'feedback error';
-      feedback.textContent = 'Quantity must be a whole number between 1 and 999,999.';
-      return;
-    }
-    if (!CONFIG.workerUrl || !CONFIG.turnstileSiteKey) {
-      feedback.className = 'feedback error';
-      feedback.textContent = 'Discord service is not activated yet. Contact the garage admin.';
-      return;
-    }
-    const widgetId = widgetIds.get(form);
-    if (widgetId === undefined || !window.turnstile) {
-      feedback.className = 'feedback error';
-      feedback.textContent = 'Secure verification is loading. Please try again.';
-      return;
-    }
-    const token = window.turnstile.getResponse(widgetId);
-    if (!token) {
-      feedback.className = 'feedback error';
-      feedback.textContent = 'Please complete the security verification before submitting.';
-      return;
-    }
-    const button = form.querySelector('button[type=submit]');
-    button.disabled = true;
-    feedback.className = 'feedback wait';
-    feedback.textContent = 'Sending to Discord...';
-    try {
-      const response = await fetch(CONFIG.workerUrl, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({action:form.dataset.action,staff,item,quantity:qty,note,turnstileToken:token})
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) throw new Error(result.error || 'Discord submission failed.');
-      history.unshift({
-        action:form.dataset.action,staff,item,quantity:qty,note,
-        id:result.id || '—',timestamp:result.timestamp || new Date().toLocaleString('en-GB')
-      });
-      history = history.slice(0,30);
-      localStorage.setItem(STORAGE, JSON.stringify(history));
+  const btnClear = document.getElementById('clearHistory');
+  btnClear.addEventListener('click', () => {
+    if (history.length && confirm('Clear only local attempts? Discord messages are unaffected.')) {
+      history.length = 0;
+      localStorage.removeItem(STORAGE);
       drawHistory();
-      form.reset();
-      feedback.className = 'feedback success';
-      feedback.textContent = '✓ Sent to Discord successfully.';
-    } catch(error) {
-      feedback.className = 'feedback error';
-      feedback.textContent = 'Not sent: ' + (error.message || 'Please try again.');
-    } finally {
-      button.disabled = false;
-      window.turnstile.reset(widgetId);
     }
   });
-}
-drawHistory();
+  for (const form of document.querySelectorAll('form[data-action]')) {
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const feedback = form.querySelector('.feedback');
+      feedback.className = 'feedback';
+      feedback.textContent = '';
+      const fields = Object.fromEntries(new FormData(form));
+      const staff = String(fields.staff || '').trim();
+      const item = String(fields.item || '').trim();
+      const note = String(fields.note || '').trim();
+      const quantity = fields.quantity ? Number(fields.quantity) : null;
+      if (!staff || !item) {
+        feedback.className = 'feedback error';
+        feedback.textContent = 'Staff name and item details are required.';
+        return;
+      }
+      if (quantity !== null && (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999999)) {
+        feedback.className = 'feedback error';
+        feedback.textContent = 'Quantity must be a whole number between 1 and 999,999.';
+        return;
+      }
+      if (DISCORD_WEBHOOK.includes('/ID/TOKEN') ||
+          !/^https:\/\/(?:discord\.com|discordapp\.com|canary\.discord\.com)\/api\/webhooks\/\d+\/[A-Za-z0-9_-]+/.test(DISCORD_WEBHOOK)) {
+        feedback.className = 'feedback error';
+        feedback.textContent = 'Discord webhook is not configured. Ask the owner to update DISCORD_WEBHOOK in index.html.';
+        return;
+      }
+      const action = form.dataset.action;
+      const now = new Date();
+      const wib = new Intl.DateTimeFormat('en-GB', {
+        timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit',
+        hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'
+      }).format(now);
+      const id = (action === 'deposit' ? 'DP-' : 'WD-') +
+        now.toISOString().replace(/[-:.TZ]/g, '').slice(0,14) + '-' +
+        crypto.randomUUID().slice(0,8).toUpperCase();
+      const payload = {
+        username:'Narasi Garage Logs',
+        allowed_mentions:{parse:[]},
+        embeds:[{
+          title: action === 'deposit' ? '📥 NARASI GARAGE | DEPOSIT' : '📤 NARASI GARAGE | WITHDRAW',
+          color: action === 'deposit' ? 0x00DDE9 : 0xFF4565,
+          fields:[
+            {name:'👤 Staff / IC Name',value:staff,inline:true},
+            {name:'📦 Item / Description',value:item,inline:true},
+            {name:'🔢 Quantity',value:quantity === null ? 'Not specified' : String(quantity),inline:true},
+            {name:'📝 Notes / Reason',value:note || '—',inline:false},
+            {name:'🆔 Transaction ID',value:id,inline:false}
+          ],
+          footer:{text:'Narasi Garage • Withdraw & Deposit • ' + wib + ' WIB'},
+          timestamp:now.toISOString()
+        }]
+      };
+      const submit = form.querySelector('button[type=submit]');
+      submit.disabled = true;
+      feedback.className = 'feedback wait';
+      feedback.textContent = 'Sending request to Discord...';
+      try {
+        const data = new FormData();
+        data.append('payload_json', JSON.stringify(payload));
+        // Discord accepts multipart payload_json. no-cors responses are opaque.
+        await fetch(DISCORD_WEBHOOK, {method:'POST',mode:'no-cors',body:data});
+        history.unshift({action,staff,item,note,quantity,id,timestamp:wib + ' WIB'});
+        history.length = Math.min(30, history.length);
+        localStorage.setItem(STORAGE, JSON.stringify(history));
+        drawHistory();
+        form.reset();
+        feedback.className = 'feedback wait';
+        feedback.textContent = 'Request submitted. Check your Discord channel to confirm delivery.';
+      } catch (error) {
+        feedback.className = 'feedback error';
+        feedback.textContent = 'Request failed: ' + (error.message || 'Network error.');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+  drawHistory();
 })();
 </script>
 </body>
