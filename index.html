@@ -33,8 +33,7 @@ footer{text-align:center;margin:24px 0;color:#7f9ca7;font-size:11px}
       <div><div class="kicker">NARASI GARAGE • MANAGEMENT SYSTEM</div><h1 class="title">WITHDRAW <span>&</span> DEPOSIT</h1><p class="desc">Record items entering and leaving the garage. No prices, cash, or fixed item list.</p></div>
     </div>
   </header>
-  <div class="head-actions"><div id="connectionBadge" class="pill"><i></i> DISCORD NOT CONFIGURED</div><button class="settings-btn" id="openSettings" type="button">⚙ Discord Settings</button></div>
-  <p class="info">Type any item name and details. Records are sent to Discord only after you connect the secure webhook relay in Settings.</p>
+  <p class="info">Enter any item name and details. Transactions are sent to Discord after a one-time secure connection setup.</p>
   <section class="grid" aria-label="Deposit and Withdraw forms">
     <form class="card" data-action="deposit">
       <h2>📥 Deposit</h2><p class="sub">Record items added to the garage.</p><div class="bar deposit"></div>
@@ -76,12 +75,10 @@ let access=sessionStorage.getItem('narasi-relay-session-access')||'';
 let history=[];
 try{const obj=JSON.parse(localStorage.getItem(STORAGE)||'[]');if(Array.isArray(obj))history=obj.slice(0,30)}catch(e){}
 const esc=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
-const badge=$('#connectionBadge');
-function updateBadge(){badge.classList.toggle('ready',!!(relay&&access));badge.innerHTML='<i></i> '+(relay&&access?'DISCORD RELAY CONNECTED':'DISCORD NOT CONFIGURED')}
 function drawHistory(){const out=$('#logList');out.innerHTML=history.length?history.map(t=>`<div class="log"><div><div class="log-title">${esc(t.item)}${t.quantity?' × '+esc(t.quantity):''}</div><div class="log-detail">Staff: ${esc(t.staff)}${t.note?'\nNotes: '+esc(t.note):''}\n${esc(t.timestamp)} · ${esc(t.id)}</div></div><span class="log-type ${esc(t.action)}">${t.action==='deposit'?'DEPOSIT':'WITHDRAW'}</span></div>`).join(''):'<div class="empty">No submissions yet. Connect Discord and submit a record to start.</div>'}
 function openSettings(){ $('#relayUrl').value=relay;$('#accessKey').value=access;$('#settingsDialog').classList.add('open');$('#relayUrl').focus() }
 function closeSettings(){$('#settingsDialog').classList.remove('open')}
-$('#openSettings').addEventListener('click',openSettings);$('#closeSettings').addEventListener('click',closeSettings);
+$('#closeSettings').addEventListener('click',closeSettings);
 $('#settingsDialog').addEventListener('click',e=>{if(e.target.id==='settingsDialog')closeSettings()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings()});
 $('#saveSettings').addEventListener('click',()=>{
@@ -90,7 +87,7 @@ $('#saveSettings').addEventListener('click',()=>{
   relay=next;access=key;
   if(relay)localStorage.setItem(RELAY_STORAGE,relay);else localStorage.removeItem(RELAY_STORAGE);
   if(access)sessionStorage.setItem('narasi-relay-session-access',access);else sessionStorage.removeItem('narasi-relay-session-access');
-  updateBadge();closeSettings();
+  closeSettings();
 });
 $('#clearHistory').addEventListener('click',()=>{if(!history.length)return;if(confirm('Clear only the history saved in this browser? Discord messages will not be deleted.')){history=[];localStorage.removeItem(STORAGE);drawHistory()}});
 for(const form of document.querySelectorAll('form[data-action]')){
@@ -113,7 +110,7 @@ for(const form of document.querySelectorAll('form[data-action]')){
     }catch(err){fb.className='feedback error';fb.textContent='Not sent: '+(err.message||'Network error. Check relay settings.')}finally{btn.disabled=false}
   });
 }
-updateBadge();drawHistory();
+drawHistory();
 })();
 </script>
 </body>
